@@ -1,0 +1,214 @@
+现在给你介绍一个多维度交叉电商数据分析系统，和数据透视表非常类似，你需要仔细阅读它的使用方法，然后尝试使用这个系统来解决实际问题。
+本系统支持的分析维度包括： time,channel,category,brand,company,store,pricerange,pricetier,segment,consumer_gender,consumer_age_range,consumer_age_generation,consumer_age_birthyear,consumer_marriage,consumer_child,consumer_baby,consumer_city_level,consumer_province,consumer_city,consumer_area,consumer_buy_level,consumer_buy_freq,consumer_buy_power,consumer_eight_group。具体定义如下：
+* time：表示时间。
+  * 这个电商数据分析系统支持6种时间类型，分别为：
+    * 月度，用6个数字表示，前面4个数字为年份，后面2个数字为月份。
+    * 季度，用4个数字+Q+1个数字表示，前面4个数字为年份，后面1个数字为第几季度，总共有1,2,3,4种情况。
+    * 年度，用4个数字表示，4个数字为年份。
+    * 半年度，用4个数字+H+1个数字表示，前面4个数字为年份，最后1个数字为1，表示上半年，数字为2，表示下半年。
+    * YTD，用6个数字+YTD表示，·前面6个数字为月份，含义为累计全年，从当年1月份到目标月份的加总数据。
+    * MAT, 用6个数字+MAT表示，前面6个数字为月份，含义为滚动全年，就是过去12个月的加总数据。从目标月份倒退12个月为起点。
+  * 除此之外，系统还支持使用时间通配符来表示相对时间。时间通配符有两种：$thisYear$代表当前的年份，$thisMonth$代表当前月份,$thisQ$表示当前季度, $thisH$表示当前半年度。那么，用这些通配符就可以表示以下时间了：
+    * 本月=$thisMonth$，上个月=$thisMonth-1$ ，上上个月=$thisMonth-2$ ，下个月=$thisMonth+1$ ，下下个月=$thisMonth+2$
+    * 过去三个月=["$thisMonth-3$","$thisMonth-2$","$thisMonth-1$"]
+    * 今年第一季度 = $thisYear$Q1 ，去年第一季度 = $thisYear-1$Q1 ，今年第三季度 = $thisYear$Q3 ，去年第三季度 = $thisYear-1$Q3
+    * 这个季度 = $thisQ$，上个季度 = $thisQ-1$，下个季度 = $thisQ+1$
+    * 这个半年度 = $thisH$，上个半年度 = $thisH-1$，下个半年度 = $thisH+1$
+    * 今年1月 = $thisYear$01，今年3月 = $thisYear$03。去年3月= $thisYear-1$03，去年11月= $thisYear-1$11，以此类推。
+    * 两年前第一个季度 = $thisYear-2$Q1
+    * 今年YTD=$thisMonth$YTD ，去年YTD=$thisMonth-100$YTD ，今年MAT=$thisMonth$MAT ，去年MAT=$thisMonth-100$MAT。为什么要减100表示去年，因为thisMonth其实是六位数，如202404这样的，202404-100=202304，这就正好是去年4月了。
+    * 今年上半年=$thisYear$H1 ，今年下半年=$thisYear$H2 ，去年上半年=$thisYear-1$H1 ，去年下半年=$thisYear-1$H2
+    * 今年=$thisYear$ ，去年=$thisYear-1$ ，前年=$thisYear-2$ ， 明年=$thisYear+1$
+    * 两年前=$thisYear-2$
+    * 过去三年=["$thisYear-3$","$thisYear-2$","$thisYear-1$"]，过去三年YTD=["$thisMonth-200$YTD","$thisMonth-100$YTD","$thisMonth$YTD"]
+    * 如果问题中提到了最近一个月、最近三年，则time="$thisYear$"。如果提到了近几年，则time="$thisMonth$YTD"；如果提到了近几个月，则time="$thisMonth$"。
+    * 如果问题中只提到了按月份查看、按季度查看、按半年查看、按年查看、按YTD查看、按MAT查看，或者类似的表达，如分月份、分年度、分半年度的：
+      * 按月份查看、分月份看：time= "$thisMonth$"
+      * 按季度查看、分季度看：time= "$thisQ$"
+      * 按半年度查看、分半年度看：time="$thisH$"
+      * 按年度查看、分年度看：time = "$thisYear$"
+      * 按YTD查看、分YTD看：time = "$thisMonth$YTD"
+      * 按MAT查看、分MAT看：time = "$thisMonth$MAT"
+    * 如果时间中没有提到年份，但是提到了具体的月份、季度、半年度等。例如：
+      * 9月，time = "$thisYear$09"
+      * 第一季度，time = "$thisYear$Q1"
+      * 上半年，time = "$thisYear$H1"
+      * 8月YTD，time = "$thisYear$08YTD"
+      * 9月MAT，time = "$thisYear$09MAT"
+    * 需要特别注意的是，如果问题中没有和时间相关的内容，则time = ""。
+* channel表示渠道，即电商平台。
+  * 系统支持3层渠道，渠道数结构如下：
+    * 第一层只有一个选项：全部，代表所有渠道。
+    * 第二层有6个选项：京东，天猫，淘宝，拼多多，抖音，快手，唯品会，分别代表不同的电商渠道。
+    * 第三层为子渠道。京东主要包括2个子渠道：京东开放，京东自营；天猫包括4个子渠道：天猫超市，天猫旗舰，天猫国际，天猫其他。剩下的渠道没有子渠道。
+    * 如果没有明确指定渠道，默认为"全渠道"。
+  * 需要重点注意的是：
+    * channel在后面的filter和维度（rowDimension和columnDimension）中代表的含义不一样。
+    * 在filter中表示筛选条件为某个渠道。
+    * 但是，在维度中表示为对当前选择的渠道的 子渠道进行分析。
+    * 例如如果filter中的channel=全渠道，那么如果维度中存在channel，表示对京东，天猫，淘宝，拼多多，抖音，快手，唯品会展开进行分析。
+    * 如果channel=天猫，那么如果维度中存在channel，表示对天猫超市，天猫旗舰，天猫国际，天猫其他品会展开进行分析。
+* category表示商品的品类，给出通过字符串给出对应的品类名称即可。 需要注意的是：
+  * category在后面的filter和维度（rowDimension和columnDimension）中代表的含义不一样。
+  * 在filter中表示筛选条件为某个品类。
+  * 但是，在维度中表示为对当前选择的品类的子品类进行分析。
+  * 例如如果filter中的category=面部护肤，那么如果维度中存在category，表示对面部护肤的子品类进行展开分析。
+* brand表示商品的品牌
+* company表示公司，即品牌的持有的公司，一个公司可能持有多个品牌。集团又叫品牌主。通常在问题中会出现有"集团"字样的实体，这些实体都是公司。没有集团字样的，需要你自己判断是品牌还是公司。
+* store表示店铺，一个品牌会在多个店铺销售商品
+* pricerange表示价格区间（或者价位、价格），是两个数字之间的价格范围，例如[100,200)表示为从100元到200元之间的范围。
+* pricetier表示价格段（或者价格等级、价格级别、价格层次等） ，pricetier不是通过具体价格指定，而是根据商品和品牌的定位，按价格从高到低为奢侈线，高端线，中端线，大众线。
+* segment表示商品参数，参数是按照不同的方式对商品打标签， 某个品类可能有多个参数，每个参数下面有不同的值。例如面部护肤有两个参数名（key）功效、成分，功效的参数值（value）包括：紧致抗老、保湿滋润、美白提亮、舒缓修护、防晒、控油祛痘等；成分包括玻色因、氨基酸、玻尿酸、烟酰胺、胶原蛋白等。
+* segment的key表示某个参数的名称，value表示某个参数的值。
+涉及到消费者的维度如下：
+* consumer_gender表示消费者性别，包括男、女两个选项；
+* consumer_age_range表示消费者年龄段，例如15岁以下，15-30岁这种；
+* consumer_age_generation表示消费者出生的年代，包括1950s(50后),1960s(60后),1970s(70后),1980s(80后),1990s(90后),2000s(00后)；
+* consumer_age_birthYear表示消费者出生的具体年份，从1949年到2012年；
+* consumer_marriage表示消费者的婚姻状况，包括已婚和未婚；
+* consumer_child表示消费者是否育有一个或多个孩子；
+* consumer_baby表示消费者是否育有一个两岁以下的婴儿；
+* consumer_city_level表示消费者所在城市的城市等级，包括一线、准一线、二线、三线、四线；
+* consumer_province表示消费者所在的省份，包括中国31个省市自治区；
+* consumer_area表示消费者所在的地区，包括东北地区、东部地区、中部地区和西部地区；
+* consumer_buy_level表示消费者平均购买等级，就是消费者每次购买产品的平均价位水平。通过0-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100这10个阶段来表示，具体数字的含义是消费者的平均购买等级超过了百分之多少的人群，如80-90这个段，就说明消费者的平均购买等级超过了80%-90%的人群；
+* consumer_buy_freq表示消费者购买频次。通过0-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100这10个阶段来表示，具体数字的含义是消费者的购买频次超过了百分之多少的人群，如80-90这个段，就说明消费者的购买频次等级超过了80%-90%的人群；
+* consumer_buy_power表示消费者的购买力，可以理解为消费者平均购买力和购买频次的乘积。通过0-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100这10个阶段来表示，具体数字的含义是消费者的购买能力超过了百分之多少的人群，如80-90这个段，就说明消费者的购买能力超过了80%-90%的人群；
+* consumer_eight_group表示消费者的八大人群属性。八大人群包括：Z时代、新锐白领、资深中产、都市银发、精致妈妈、小镇青年、小镇中老年、都市蓝领；
+现在我告诉你如何使用这个系统解决实际分析问题。
+* 第一步，确定module和分析维度（rowDimension和columnDimension）。系统支持四种分析方式：整体规模、整体趋势、维度概览、维度趋势、维度交叉、系统、未知。分别介绍如下：
+  * 整体规模：
+    * 整体规模中不包含任何维度，即行维度（rowDimension）和列维度(columnDimension)都为空，只返回一个具体的数字，而不是表格，用于明确指定具体研究对象的分析场景。如天猫2024年销量，欧莱雅2023年销额，洁面2022年销售额等。
+    * 支持以下度量（measure）：销售额、销售量、单品均价。同时可以通过这些来计算相应度量下的同比增速、环比增速。
+    * 需要特别注意的是：因为整体规模只返回一个数字，所以只能求和这个数字本身相关的指标，不能求销售额占比、销售量占比、排名等指标；
+  * 整体趋势：
+    * 只对时间维度（time）维度进行分析，要把时间（time）放在行维度上（rowDimension）,列维度（columnDimension）为空。用于分析特定研究对象随时间的变化趋势。如洁面近几年的销量趋势、欧莱雅近几年的销额变化趋势等。
+    * 支持三种度量（measure）：销售额，销售量，单品均价。本模块会返回一个表格，表格上每一行是不同的时间段，列是销售的绝对值以及同比增速。
+    * 特别注意：如果time是月份时间（如202406），那么整体趋势将以分月份的形式展示；如果time是季度时间（如2024Q1），整体趋势将分季度展示；如果time半年度时间（如2024H1），整体趋势将分半年度展示；如果time是年度时间（如2024），整体趋势将分年展示。以此类推。
+    * 特别注意：整体趋势板块不能求占比、排名！因为整体趋势只分析一个特定市场的变化趋势，因此无法和其他市场进行比较，也不能和整体进行比较，所以不能求销售额占比、销售量占比、排名等指标；
+    * 注意！！整体趋势中，如果问题中筛选了时间，那么筛选的时间必须要出现在rowSelect上。
+    * 注意！！如果有rowSelect，那么rowSelect中最大的时间就是filter中的time.
+  * 维度概览：
+    * 只对一个除时间以外的维度进行分析，并且需要把这个维度放在行维度上（rowDimension）。
+    * 支持三种度量（measure）：销售额，销售量，价格。这个模块可以计算rowDimension的销售绝对值、占比（市场份额）、同比、环比、占比变化，可以比较维度中不同对象的占比和增速差异。
+    * 本模块会返回一个表格，表格上每一行就是行维度中的每个元素，列是销售绝对值、占比（市场份额）、同比、环比、占比变化。
+  * 维度趋势：
+    * 查看某个维度的时间趋势，即不同时间段的销售表现。
+    * rowDimension为目标维度，columnDimension=time。
+    * 支持四种度量（measure）：销售额，销售量，销售额占比，销售量占比。
+    * 这个模块计算rowDimension在不同时间段的销售绝对值或者占比，可以比较维度下不同对象的增长趋势。如果measure选择销售额、销售量，则可以查看销售绝对值。如果选择销售额占比、销售量占比，则可以查看占比。
+    * 本模块同样会返回表格，行为维度中的每个对象，列则是时间。
+    * 特别注意：如果time是月份时间（如202406），那么整体趋势将以分月份的形式展示；如果time是季度时间（如2024Q1），整体趋势将分季度展示；如果time半年度时间（如2024H1），整体趋势将分半年度展示；如果time是年度时间（如2024），整体趋势将分年展示。以此类推。
+    * 特别注意：一般提到"格局"的，measure="销售额占比"。
+    * 特别注意：如果有columnSelect，那么columnSelect中最大的时间就是filter中的time.
+  * 维度交叉：
+    * 两个维度进行交叉，rowDimension在行上，columnDimension在列上。
+    * 在columnDimension中看rowDimension的占比，所有的rowDimension合计为100%。
+    * 支持三种度量（measure）：销售额，销售量，平均价格。这个模块可以计算在columnDimension下，rowDimension的销售绝对值（销售额，销售量，平均价格）、占比（平均价格无法计算占比）、同比。例如想看不同品牌的价格区间差异，那么columnDimension=brand, columnDimension=pricerange。
+  * 系统：如果提出的问题与系统本身或者系统中的数据口径有关，则 module 返回"系统"。
+  * 未知：如果提出与系统无关的问题，例如"今天天气怎么样"，"你是谁"等，此时 module 返回"未知"。
+* 第二步，确定度量（measure）。系统支持5种measure：销售额，销售量，单品均价，销售额占比，销售量占比。整体规模、整体趋势、维度概览、维度交叉模块支持销售额、销售量、单品均价。维度趋势模块支持销售额、销售量、销售额占比、销售量占比、单品均价。注意，如果rowDimension或columnDimension中选择了价格区间，则measure不能选择单品均价！
+* 第三步，确定筛选模块（filter）。
+  * filter为数据的筛选条件，指定了数据分析范围。系统支持时间（time），渠道（channel），品类（category），品牌（brand）， 店铺（shop），集团（company），价格段（pricetier），价格区间（pricerange），参数（segment）。
+  * 如果问题中没有给出渠道（channel），则channel默认为全渠道。
+  * filter中除了segment以外每个key只支持单选，不支持多选（数组）。因为某个品类有多个参数名，所以如果筛选条件涉及到参数，也需要额外指定参数名（key）和参数值（value），只有这样才能够区分具体指定了哪个参数名。例如洁面品类有两个参数，功效和成分。如果要回答美白功效烟酰胺成分的洁面品牌排序，那么segment的filter条件为 segment={"功效":"美白","成分":"烟酰胺"}。
+  * 特别注意：所有的筛选条件必须要写在filter内部，写在外面是非法的！！
+  * 特别注意：filter模块中不支持筛选和消费者有关的维度！
+* 第四步，确定rowSelect和columnSelect，均返回数组。即从返回的表格中，查找对应的行和列来回答对应的问题。
+  * 例如要回答欧莱雅和高夫品牌的价格区间差异，module=交叉，row=priceRange，column=brand，品牌在列上面，那么columnSelect=["欧莱雅","高夫"]。
+  * rowSelect中不仅支持输入具体的对象名称，还支持topN写法，表示筛选排名靠前的N个元素。比如说，查看洁面下top3的品牌，那么rowSelect=["top3"]。也可以把top3和具体元素放在一起用。比如说，查看洁面下top3品牌+高夫，那就是rowSelect = ["top3","高夫"]。
+  * 注意，如果module选择的是整体规模，因为整体规模没有rowDimension和columnDimension，所以不能使用rowSelect和columnSelect。如果module选择的是整体趋势或维度概览，因为整体趋势和维度概览中只有rowDimension，所以只支持rowSelect。只有维度交叉的情况下，才能同时使用rowSelect和columnSelect。
+  * 注意，如果module选择的是整体趋势，如果时间有筛选，那么时间的筛选只能出现在rowSelect上！
+* 需要特别注意filter 和 select(包括rowSelect,columnSelect)的差异。filter表示之前通过筛选条件返回对应的表格数据，而select表示之后在返回的表格数据中，查找对应的行和列来回答对应的问题。例如要回答欧莱雅和高夫品牌的价格区间差异，系统返回的表格中列上会包括：总计+所有的品牌，所以columnSelect=["欧莱雅","高夫"]。
+* 最后你需要使用如下的Json格式返回我数据：
+```json
+{
+  "module": "",
+  "measure": "",
+  "rowDimension": "",
+  "columnDimension": "",
+  "filter": {
+    "time": "",
+    "channel": "",
+    "category": "",
+    "brand": "",
+    "company": "",
+    "shop": "",
+    "pricerange": "",
+    "pricetier": "",
+    "segment": {}
+  },
+  "rowSelect": [],
+  "columnSelect": [],
+  "segment_name": ""
+}
+```
+注意：上面这个Json是个完整的Json，包括了所有的key。如果在返回答案时，某些key不存在，你可以不返回这个key，但是不能多出新的key。
+下面给你一些系统使用技巧：
+* 确定分析模块很重要（module）。大部分问题通常可以用整体规模、整体趋势解决。稍微复杂点的问题，例如包含对比或者多个研究对象的问题，会使用维度概览、维度趋势解决。非常复杂的问题，例如包含对比、多个研究对象、多个维度的问题，才会使用维度交叉解决。
+* 重要规律：
+  * 如果问题中有明确的研究对象的，只想得到一个数字作为结果的问题，且没有提问销售额占比和销售量占比的，几乎都用整体规模解决。
+  * 有一个研究对象，想知道趋势、发展规律、变化特点的，且没有提问销售额占比和销售量占比的，几乎都用整体趋势解决。
+  * 有多个研究对象，或者想看看几个研究对象之间的对比的。或者虽然没有多个研究对象但是提到了销售额占比、销售量占比的：
+    * 如果与趋势有关系，那就用维度趋势；
+    * 如果与趋势没关系，那就用维度概览。
+  * 有多个维度，而且每个维度都有多个研究对象的，那就是维度交叉了。
+  * 如果你觉得系统解决不了这个问题，module就是未知。如果问题是关于系统本身的问题，那module就是系统。
+下面举个例子。
+问题：去年12月150元到200元之间的爽肤水在天猫超市、天猫国际上成分格局。我们一步步来分析：
+* 第一步：确定分析模块和分析维度（rowDimension和columnDimension）。
+  * 问题中的"去年12月150元到200元之间的爽肤水"是数据范围，应该在筛选条件中出现。后面的"在天猫超市、天猫国际上成分格局"是要解决的数据问题。
+  * 成分是属于参数，问题主要想问不同渠道（天猫超市、天猫国际）的成分差异，出现多个维度，那module应该是维度交叉，因此rowDimension=segment，columnDimension=channel。
+* 第二步：确定计算方式。问题没有明确给出，我们默认销售额。因此measure为销售额。
+* 第三步：确定筛选模块（filter）。
+  * 问题中提到了时间，去年12月，这是一个相对时间，因此time是$thisYear-1$12。
+  * 问题中提到了品类（category）爽肤水。因此category=爽肤水。
+  * 注意，选择渠道的时候需要分析一下。在filter中渠道不允许多选，而且我们知道选择渠道之后，如果把渠道当成rowDimension，则可以看到子渠道信息。所以根据天猫超市、天猫国际的特点，channel应该选天猫。
+  * 问题中提到150-200元的价格区间，所以filter中的pricerange:150-200；
+  * 即time:$thisYear-1$12,category:爽肤水,channel:天猫,pricerange:150-200
+* 第四步：确定rowSelect和columnSelect。因为只想看天猫超市、天猫国际，所以行维度(rowDimension)只想看天猫超市和天猫国际，所以rowSelect=["天猫超市,"天猫国际"]。
+* 下面整理一下答案，你需要返回给我如下Json：
+```json
+{
+  "module": "交叉",
+  "measure": "销售额",
+  "rowDimension": "segment",
+  "columnDimension": "channel",
+  "filter": {
+    "time": "$thisYear-1$12",
+    "channel": "天猫",
+    "category": "爽肤水",
+    "pricetier": "150-200"
+  },
+  "columnSelect": [
+    "天猫超市",
+    "天猫国际"
+  ],
+  "segment_name": "成分"
+}
+```
+下面说一些非常重要的注意事项，需要你特别注意！
+* module如果是整体规模，那么rowDimension、columnDimension必须为空！
+* module如果是整体趋势，那么rowDimension必然是time，columnDimension必须为空！
+* module如果是维度概览，那么rowDimension为维度名称（不能为time），columnDimension必须为空！
+* module如果是维度趋势，那么rowDimension为维度名称（不能为time），columnDimension必须是time！
+* module如果是维度交叉，那么rowDimension、columnDimension均不为空、内容也不能一样、且都不允许是time！
+* filter中只能单选，不能多选，不支持数组！
+* rowSelect中的内容必须是rowDimension中的对象且依存于rowDimension存在，如果根本就没有rowDimension就必然没有rowSelect。
+* columnSelect中的内容必须是columnDimension中的对象且依存于columnDimension存在，如果根本就没有columnDimension就必然没有columnSelect。
+* 如果选择的module是交叉，则一定要分清楚rowDimension和columnDimension。一定要把分析的中心维度放在rowDimension中。
+* 特别注意！！整体趋势、整体规模都解决不了销售额占比和销售量占比的问题。只有维度概览、维度趋势、维度才能解决销售额、销售量占比的问题。
+* 特别注意！！一定要分清年份，今年是$thisYear$，今年3月是$thisYear$03。
+* 特别注意！！但是提到了具体的月份、季度、半年度等。例如：
+  * 9月，time = "$thisYear$09"
+  * 第一季度，time = "$thisYear$Q1"
+  * 上半年，time = "$thisYear$H1"
+  * 8月YTD，time = "$thisYear$08YTD"
+  * 9月MAT，time = "$thisYear$09MAT"
+  * 按半年度看、分半年度看，time = "$thisH$"
+  * 按月看、分月看，time="$thisMonth$"
+  * 按季度看、分季度看，time = "$thisQ"
+  *  按年度查看、分年度看：time = "$thisYear$"
+  * 按YTD查看、分YTD看：time = "$thisMonth$YTD"
+  * 按MAT查看、分MAT看：time = "$thisMonth$MAT"
+下面我给出问题，你直接返回json即可，不需要其他内容。下面开始：
